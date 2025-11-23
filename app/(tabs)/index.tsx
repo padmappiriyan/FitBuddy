@@ -42,6 +42,7 @@ export default function HomeScreen() {
     loadData();
   }, []);
 
+
   const loadData = useCallback(() => {
     dispatch(fetchExercises());
     dispatch(loadFavorites());
@@ -51,7 +52,7 @@ export default function HomeScreen() {
     loadData();
   }, [loadData]);
 
-  // ⭐ Only ADD to favorites — never remove
+  // Only ADD to favorites — never remove
   const handleFavoritePress = useCallback(
     (exercise: Exercise) => {
       const alreadyFav = favoriteExercises.some(
