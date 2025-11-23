@@ -58,17 +58,16 @@ export const ExerciseCard: React.FC<ExerciseCardProps> = ({
         Instructions: {exercise.instructions}
       </Text>
 
-    
+     
+      <TouchableOpacity
+        className="mt-2 px-4 py-2 rounded-full items-center"
+        style={{ backgroundColor: colors.primary }} 
+        onPress={onPress}
+      >
+        <Text className="text-white font-bold">View Details</Text>
+      </TouchableOpacity>
 
-      {/* Remove Button */}
-      {onFavoritePress && (
-        <TouchableOpacity
-          className="bg-red-500 rounded-lg py-2 px-4 mt-3 items-center"
-          onPress={onFavoritePress}
-        >
-          <Text className="text-white font-semibold">Remove</Text>
-        </TouchableOpacity>
-      )}
+    
     </TouchableOpacity>
   );
 };
