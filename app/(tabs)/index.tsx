@@ -1,98 +1,222 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import { ExerciseCard } from "@/components/ExerciseCard";
+import { EmptyState } from "@/components/EmptyState";
+import { LoadingSpinner } from "@/components/LoadingSpinner";
+import { ErrorMessage } from "@/components/ErrorMessage";
+import { useTheme } from "@/contexts/ThemeContext";
+import { useAppDispatch, useAppSelector } from "@/redux/hooks";
+import {
+  addFavoriteExercise,
+  loadFavorites,
+} from "@/redux/slices/favoriteSlice";
+import { fetchExercises } from "@/redux/slices/exercisesSlice";
+import { Exercise } from "@/types";
+import { useEffect, useState, useCallback } from "react";
+import {
+  FlatList,
+  RefreshControl,
+  Text,
+  View,
+  TouchableOpacity,
+  ScrollView,
+  Dimensions,
+} from "react-native";
+import { router } from "expo-router";
+import { LinearGradient } from "expo-linear-gradient";
 
-import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
+const { width } = Dimensions.get("window");
 
 export default function HomeScreen() {
-  return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
+  const { colors } = useTheme();
+  const dispatch = useAppDispatch();
+  const [selectedCategory, setSelectedCategory] = useState("All");
 
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+  const { exercises, isLoading, error } = useAppSelector(
+    (state) => state.exercises
+  );
+  const { favoriteExercises } = useAppSelector((state) => state.favorites);
+  const { user } = useAppSelector((state) => state.auth);
+
+  const categories = ["All", "Chest", "Back", "Legs", "Arms", "Core"];
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const loadData = useCallback(() => {
+    dispatch(fetchExercises());
+    dispatch(loadFavorites());
+  }, [dispatch]);
+
+  const handleRefresh = useCallback(() => {
+    loadData();
+  }, [loadData]);
+
+  // ⭐ Only ADD to favorites — never remove
+  const handleFavoritePress = useCallback(
+    (exercise: Exercise) => {
+      const alreadyFav = favoriteExercises.some(
+        (fav) => fav.name === exercise.name
+      );
+      if (!alreadyFav) {
+        dispatch(addFavoriteExercise(exercise));
+      }
+    },
+    [favoriteExercises, dispatch]
+  );
+
+  const isFavorite = useCallback(
+    (exerciseName: string) =>
+      favoriteExercises.some((fav) => fav.name === exerciseName),
+    [favoriteExercises]
+  );
+
+  const handleExercisePress = useCallback((exercise: Exercise) => {
+    router.push({
+      pathname: "/match/[id]",
+      params: { id: exercise.name, exercise: JSON.stringify(exercise) },
+    });
+  }, []);
+
+  const filteredExercises =
+    selectedCategory === "All"
+      ? exercises
+      : exercises.filter((ex) =>
+          ex.muscle?.toLowerCase().includes(selectedCategory.toLowerCase())
+        );
+
+  const renderExercise = useCallback(
+    ({ item }: { item: Exercise }) => (
+      <ExerciseCard
+        exercise={item}
+        onPress={() => handleExercisePress(item)}
+        onFavoritePress={() => handleFavoritePress(item)}
+        isFavorite={isFavorite(item.name)}
+      />
+    ),
+    [handleExercisePress, handleFavoritePress, isFavorite]
+  );
+
+  if (isLoading && exercises.length === 0) {
+    return <LoadingSpinner fullScreen />;
+  }
+
+  return (
+    <View className="flex-1" style={{ backgroundColor: colors.background }}>
+      <LinearGradient
+        colors={["#84cc16", "#65a30d"]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        className="px-6 pt-14 pb-8 rounded-b-3xl"
+      >
+        <View className="mb-6">
+          <Text className="text-white/80 text-sm font-medium tracking-wide">
+            WELCOME BACK
+          </Text>
+          <Text className="text-white text-3xl font-black mt-1 tracking-tight">
+            {user?.username || "User"}
+          </Text>
+        </View>
+
+        <View className="flex-row justify-between">
+          <View className="bg-white/20 backdrop-blur-lg rounded-2xl px-4 py-3 flex-1 mr-2">
+            <Text className="text-white/70 text-xs font-semibold tracking-wide">
+              EXERCISES
+            </Text>
+            <Text className="text-white text-2xl font-black mt-1">
+              {exercises.length}
+            </Text>
+          </View>
+          <View className="bg-white/20 backdrop-blur-lg rounded-2xl px-4 py-3 flex-1 ml-2">
+            <Text className="text-white/70 text-xs font-semibold tracking-wide">
+              FAVORITES
+            </Text>
+            <Text className="text-white text-2xl font-black mt-1">
+              {favoriteExercises.length}
+            </Text>
+          </View>
+        </View>
+      </LinearGradient>
+
+      <View className="py-4">
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ paddingHorizontal: 16 }}
+        >
+          {categories.map((category) => (
+            <TouchableOpacity
+              key={category}
+              onPress={() => setSelectedCategory(category)}
+              activeOpacity={0.7}
+              className="mr-3"
+            >
+              <View
+                className={`px-5 py-2.5 rounded-full ${
+                  selectedCategory === category
+                    ? "bg-lime-500"
+                    : "bg-gray-200 dark:bg-gray-800"
+                }`}
+              >
+                <Text
+                  className={`font-bold text-sm tracking-wide ${
+                    selectedCategory === category
+                      ? "text-black"
+                      : "text-gray-600 dark:text-gray-300"
+                  }`}
+                >
+                  {category}
+                </Text>
+              </View>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </View>
+
+      <View className="px-6 py-2">
+        <Text
+          className="text-sm font-semibold"
+          style={{ color: colors.textSecondary }}
+        >
+          {filteredExercises.length} exercise
+          {filteredExercises.length !== 1 ? "s" : ""} found
+        </Text>
+      </View>
+
+      {error && (
+        <View className="px-6 py-2">
+          <ErrorMessage
+            message={
+              typeof error === "string"
+                ? error
+                : "Failed to load exercises"
+            }
+          />
+        </View>
+      )}
+
+      <FlatList
+        data={filteredExercises}
+        renderItem={renderExercise}
+        keyExtractor={(item) => `${item.name}-${item.muscle}`}
+        contentContainerStyle={{
+          paddingHorizontal: 16,
+          paddingBottom: 24,
+          flexGrow: 1,
+        }}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={isLoading}
+            onRefresh={handleRefresh}
+            tintColor="#84cc16"
+            colors={["#84cc16"]}
+          />
+        }
+        removeClippedSubviews
+        initialNumToRender={10}
+        maxToRenderPerBatch={10}
+        windowSize={10}
+      />
+    </View>
   );
 }
-
-const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
-  },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
-  },
-});
