@@ -7,6 +7,7 @@ export interface User {
 }
 // Exercise type returned by API Ninjas
 export interface Exercise {
+ 
   name: string;          // Exercise name, e.g. "Push-Up"
   type: string;          // Type of exercise, e.g. "strength", "cardio"
   muscle: string;        // Main muscle, e.g. "chest", "legs"
